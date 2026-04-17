@@ -1,0 +1,26 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Данные (большие файлы)
+data/raw/*.psv
+data/training_setA/
+data/training_setB/
+*.csv
+*.zip
+
+# Модели (большие файлы)
+models/*.pt
+models/*.pth
+*.bin
+
+# Результаты
+results/plots/*.png
+*.log
+
+# IDE
+.vscode/
+.idea/
