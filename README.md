@@ -282,12 +282,12 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 # Установите зависимости
 pip install -r requirements.txt
 
-**Данные:**
+#Данные:
 # PhysioNet 2019:
 # https://physionet.org/content/challenge-2019/1.0.0/
 # Поместите в data/physionet.org/files/challenge-2019/1.0.0/
 
-**Обучение**
+#Обучение
 cd src
 
 # Централизованное обучение
