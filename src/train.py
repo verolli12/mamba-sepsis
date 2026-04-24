@@ -21,13 +21,14 @@ sys.path.insert(0, str(Path(__file__).parent))
 from models import create_model, count_parameters
 
 
-def train_epoch(model, loader, criterion, optimizer, device):
+def train_epoch(model, loader, criterion, optimizer, device, epoch):
     """Обучение на одной эпохе с защитой от NaN"""
     model.train()
     total_loss = 0
     all_preds = []
     all_labels = []
     
+    processed_batches = 0
     for batch_idx, (x, mask, y) in enumerate(tqdm(loader, desc="Training", leave=False)):
         x, mask, y = x.to(device), mask.to(device), y.to(device)
         
@@ -53,6 +54,7 @@ def train_epoch(model, loader, criterion, optimizer, device):
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
             
             optimizer.step()
+            processed_batches += 1
             
             # 🔍 DEBUG: Проверка градиентов
             if batch_idx == 0 and epoch == 1:
@@ -84,7 +86,7 @@ def train_epoch(model, loader, criterion, optimizer, device):
     if len(all_preds) == 0:
         return float('inf'), [], []
     
-    return total_loss / max(len(loader), 1), all_preds, all_labels
+    return total_loss / max(processed_batches, 1), all_preds, all_labels
 
 
 @torch.no_grad()
@@ -217,7 +219,7 @@ def main():
         start = time.time()
         
         train_loss, train_preds, train_labels = train_epoch(
-            model, train_loader, criterion, optimizer, device
+            model, train_loader, criterion, optimizer, device, epoch
         )
         
         val_loss, auroc, f1, acc = evaluate(
