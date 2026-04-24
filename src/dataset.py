@@ -7,6 +7,7 @@ DataLoader для PhysioNet 2019 Sepsis Prediction
 import torch
 import numpy as np
 import pandas as pd
+import json
 from pathlib import Path
 from torch.utils.data import Dataset, DataLoader
 
@@ -99,8 +100,9 @@ class PhysioNetSepsisDataset(Dataset):
             )
 
 
-def create_dataloaders(data_dir, seq_length=48, batch_size=32, 
-                       val_split=0.2, normalize=True, num_workers=0):
+def create_dataloaders(data_dir, seq_length=48, batch_size=32,
+                       val_split=0.2, test_split=0.1, normalize=True,
+                       num_workers=0, seed=42, include_test=False):
     dataset = PhysioNetSepsisDataset(
         data_dir=data_dir,
         seq_length=seq_length,
@@ -108,13 +110,16 @@ def create_dataloaders(data_dir, seq_length=48, batch_size=32,
     )
     
     n_total = len(dataset)
+    n_test = int(n_total * test_split)
     n_val = int(n_total * val_split)
-    n_train = n_total - n_val
+    n_train = n_total - n_val - n_test
+    if n_train <= 0:
+        raise ValueError("Invalid splits: train split became non-positive")
     
-    print(f"📊 Всего: {n_total}, Train: {n_train}, Val: {n_val}")
+    print(f"📊 Всего: {n_total}, Train: {n_train}, Val: {n_val}, Test: {n_test}")
     
-    train_dataset, val_dataset = torch.utils.data.random_split(
-        dataset, [n_train, n_val], generator=torch.Generator().manual_seed(42)
+    train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(
+        dataset, [n_train, n_val, n_test], generator=torch.Generator().manual_seed(seed)
     )
     
     train_loader = DataLoader(
@@ -134,9 +139,77 @@ def create_dataloaders(data_dir, seq_length=48, batch_size=32,
         pin_memory=True
     )
     
-    print(f"📈 Train batches: {len(train_loader)}, Val batches: {len(val_loader)}")
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True
+    )
     
+    print(f"📈 Train batches: {len(train_loader)}, Val batches: {len(val_loader)}, Test batches: {len(test_loader)}")
+    
+    if include_test:
+        return train_loader, val_loader, test_loader
     return train_loader, val_loader
+
+
+def analyze_dataset(data_dir, output_path=None, max_files=None):
+    """Быстрый аудит датасета: размеры, классы, статистики и связь признаков с target."""
+    data_dir = Path(data_dir)
+    files = sorted(list(data_dir.glob("*.psv")))
+    if max_files is not None:
+        files = files[:max_files]
+    
+    if len(files) == 0:
+        raise ValueError(f"No .psv files found in {data_dir}")
+    
+    labels = []
+    feature_names = None
+    feature_stack = []
+    
+    for file in files:
+        df = pd.read_csv(file, sep='|')
+        if feature_names is None:
+            feature_names = [c for c in df.columns if c != 'SepsisLabel']
+        last_row = df.iloc[-1]
+        x = last_row[feature_names].astype(np.float32).to_numpy()
+        x = np.nan_to_num(x, nan=0.0, posinf=1e6, neginf=-1e6)
+        y = float(np.nan_to_num(last_row.get("SepsisLabel", 0.0), nan=0.0, posinf=1.0, neginf=0.0))
+        feature_stack.append(x)
+        labels.append(y)
+    
+    X = np.vstack(feature_stack)
+    y = np.array(labels, dtype=np.float32)
+    pos_rate = float(y.mean()) if len(y) > 0 else 0.0
+    
+    feature_stats = []
+    for i, name in enumerate(feature_names):
+        col = X[:, i]
+        feature_stats.append({
+            "feature": name,
+            "mean": float(np.mean(col)),
+            "std": float(np.std(col)),
+            "min": float(np.min(col)),
+            "max": float(np.max(col)),
+            "corr_with_target": float(np.corrcoef(col, y)[0, 1]) if np.std(col) > 0 and np.std(y) > 0 else 0.0
+        })
+    
+    report = {
+        "n_files": len(files),
+        "n_features": len(feature_names),
+        "positive_rate": pos_rate,
+        "negative_rate": float(1.0 - pos_rate),
+        "feature_stats": feature_stats
+    }
+    
+    if output_path is not None:
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(report, f, ensure_ascii=False, indent=2)
+    
+    return report
 
 
 class SyntheticSepsisBatch(Dataset):
