@@ -183,6 +183,11 @@
 
 ## 4) Структура проекта
 
+- `src/train.py` — основное обучение на train/val.
+- `src/select_threshold.py` — подбор порога **только на validation**.
+- `src/evaluate_test.py` — финальная **test-only** оценка сохранённого checkpoint.
+- `src/dataset.py` — загрузка данных, split и нормализация (статистики только по train).
+
 
 ## 5) Как именно рождаются данные
 

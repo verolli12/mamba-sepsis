@@ -60,14 +60,19 @@ class PhysioNetSepsisDataset(Dataset):
             print(f"  Mean shape: {self.mean.shape}, Std shape: {self.std.shape}")
         else:
             print("  ⚠️  Используем дефолтные значения (mean=0, std=1)")
-
+    def compute_stats_from_indices(self, indices, max_files=None):
     def compute_stats_from_indices(self, indices, max_files=500):
+
         """Считает mean/std ТОЛЬКО по заданному подмножеству (например, train)."""
         if not self.normalize:
             return
         print("⏳ Computing normalization statistics from TRAIN split only...")
         all_values = []
         valid_files = 0
+
+        failed_files = 0
+        selected = indices if max_files is None else indices[:max_files]
+        for idx in selected:
         for idx in indices[:max_files]:
             file = self.files[idx]
             try:
@@ -80,12 +85,15 @@ class PhysioNetSepsisDataset(Dataset):
                     all_values.append(values)
                     valid_files += 1
             except Exception:
+                failed_files += 1
                 continue
         if len(all_values) > 0 and valid_files > 0:
             all_values = np.vstack(all_values)
             self.mean = np.nanmean(all_values, axis=0).astype(np.float32)
             self.std = np.nanstd(all_values, axis=0).astype(np.float32)
             self.std = np.clip(self.std, 1e-6, 1e6)
+
+            print(f"  ✅ Вычислено из {valid_files} TRAIN-файлов (ошибок чтения: {failed_files})")
             print(f"  ✅ Вычислено из {valid_files} TRAIN-файлов")
         else:
             print("  ⚠️  TRAIN-статистики не вычислены, оставляем mean=0/std=1")
@@ -130,8 +138,10 @@ class PhysioNetSepsisDataset(Dataset):
 
 
 def create_dataloaders(data_dir, seq_length=48, batch_size=32,
-                       val_split=0.2, test_split=0.1, normalize=True,
-                       num_workers=0, seed=42, include_test=False):
+                       val_split=0.1, test_split=0.1, normalize=True,
+                       num_workers=0, seed=42, include_test=False,
+                       split_manifest_path=None, max_stats_files=None,
+                       drop_last_train=True):
     dataset = PhysioNetSepsisDataset(
         data_dir=data_dir,
         seq_length=seq_length,
@@ -151,6 +161,30 @@ def create_dataloaders(data_dir, seq_length=48, batch_size=32,
         dataset, [n_train, n_val, n_test], generator=torch.Generator().manual_seed(seed)
     )
 
+
+    if split_manifest_path is not None:
+        manifest_path = Path(split_manifest_path)
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest = {
+            "seed": seed,
+            "data_dir": str(data_dir),
+            "n_total": n_total,
+            "n_train": n_train,
+            "n_val": n_val,
+            "n_test": n_test,
+            "train_files": [str(dataset.files[i]) for i in train_dataset.indices],
+            "val_files": [str(dataset.files[i]) for i in val_dataset.indices],
+            "test_files": [str(dataset.files[i]) for i in test_dataset.indices],
+        }
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, ensure_ascii=False, indent=2)
+        print(f"📝 Split manifest saved: {manifest_path}")
+
+    # ВАЖНО: статистики нормализации считаем только по TRAIN после split (без leakage).
+    dataset.normalize = normalize
+    if normalize:
+        dataset.compute_stats_from_indices(train_dataset.indices, max_files=max_stats_files)
+
     # ВАЖНО: статистики нормализации считаем только по TRAIN после split (без leakage).
     dataset.normalize = normalize
     if normalize:
@@ -162,7 +196,7 @@ def create_dataloaders(data_dir, seq_length=48, batch_size=32,
         shuffle=True,
         num_workers=num_workers,
         pin_memory=True,
-        drop_last=True
+        drop_last=drop_last_train
     )
     
     val_loader = DataLoader(
