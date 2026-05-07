@@ -61,14 +61,16 @@ class PhysioNetSepsisDataset(Dataset):
         else:
             print("  ⚠️  Используем дефолтные значения (mean=0, std=1)")
 
-    def compute_stats_from_indices(self, indices, max_files=500):
+    def compute_stats_from_indices(self, indices, max_files=None):
         """Считает mean/std ТОЛЬКО по заданному подмножеству (например, train)."""
         if not self.normalize:
             return
         print("⏳ Computing normalization statistics from TRAIN split only...")
         all_values = []
         valid_files = 0
-        for idx in indices[:max_files]:
+        failed_files = 0
+        selected = indices if max_files is None else indices[:max_files]
+        for idx in selected:
             file = self.files[idx]
             try:
                 df = pd.read_csv(file, sep='|')
@@ -80,13 +82,14 @@ class PhysioNetSepsisDataset(Dataset):
                     all_values.append(values)
                     valid_files += 1
             except Exception:
+                failed_files += 1
                 continue
         if len(all_values) > 0 and valid_files > 0:
             all_values = np.vstack(all_values)
             self.mean = np.nanmean(all_values, axis=0).astype(np.float32)
             self.std = np.nanstd(all_values, axis=0).astype(np.float32)
             self.std = np.clip(self.std, 1e-6, 1e6)
-            print(f"  ✅ Вычислено из {valid_files} TRAIN-файлов")
+            print(f"  ✅ Вычислено из {valid_files} TRAIN-файлов (ошибок чтения: {failed_files})")
         else:
             print("  ⚠️  TRAIN-статистики не вычислены, оставляем mean=0/std=1")
     
@@ -130,9 +133,10 @@ class PhysioNetSepsisDataset(Dataset):
 
 
 def create_dataloaders(data_dir, seq_length=48, batch_size=32,
-                       val_split=0.2, test_split=0.1, normalize=True,
+                       val_split=0.1, test_split=0.1, normalize=True,
                        num_workers=0, seed=42, include_test=False,
-                       split_manifest_path=None):
+                       split_manifest_path=None, max_stats_files=None,
+                       drop_last_train=True):
     dataset = PhysioNetSepsisDataset(
         data_dir=data_dir,
         seq_length=seq_length,
@@ -173,7 +177,7 @@ def create_dataloaders(data_dir, seq_length=48, batch_size=32,
     # ВАЖНО: статистики нормализации считаем только по TRAIN после split (без leakage).
     dataset.normalize = normalize
     if normalize:
-        dataset.compute_stats_from_indices(train_dataset.indices)
+        dataset.compute_stats_from_indices(train_dataset.indices, max_files=max_stats_files)
     
     train_loader = DataLoader(
         train_dataset, 
@@ -181,7 +185,7 @@ def create_dataloaders(data_dir, seq_length=48, batch_size=32,
         shuffle=True,
         num_workers=num_workers,
         pin_memory=True,
-        drop_last=True
+        drop_last=drop_last_train
     )
     
     val_loader = DataLoader(
