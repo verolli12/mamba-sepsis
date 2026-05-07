@@ -1,0 +1,330 @@
+#!/usr/bin/env python3
+"""
+STABLE TRAINING PIPELINE
+Улучшения: Gradient accumulation, Warmup, EMA, Smoothing
+"""
+
+import argparse, sys, time, json, numpy as np, torch, torch.nn as nn
+from pathlib import Path
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+from sklearn.metrics import roc_auc_score, f1_score, accuracy_score
+
+sys.path.insert(0, str(Path(__file__).parent))
+from models import create_model, count_parameters
+
+# -----------------------------
+# WARMUP + COSINE SCHEDULER
+# -----------------------------
+class WarmupCosine:
+    def __init__(self, optimizer, warmup_steps, total_steps, min_lr=1e-7):
+        self.optimizer = optimizer
+        self.warmup_steps = warmup_steps
+        self.total_steps = total_steps
+        self.min_lr = min_lr
+        self.base_lrs = [g['lr'] for g in optimizer.param_groups]
+        self.step_num = 0
+
+    def step(self):
+        self.step_num += 1
+        for i, pg in enumerate(self.optimizer.param_groups):
+            base_lr = self.base_lrs[i]
+            if self.step_num < self.warmup_steps:
+                lr = base_lr * self.step_num / max(1, self.warmup_steps)
+            else:
+                p = (self.step_num - self.warmup_steps) / max(1, self.total_steps - self.warmup_steps)
+                lr = self.min_lr + (base_lr - self.min_lr) * 0.5 * (1 + np.cos(np.pi * p))
+            pg['lr'] = lr
+
+# -----------------------------
+# EMA (Exponential Moving Average)
+# -----------------------------
+class ModelEMA:
+    def __init__(self, model, decay=0.999):
+        self.model = model
+        self.decay = decay
+        self.ema_state = {k: v.clone().detach() for k, v in model.state_dict().items()}
+        
+    def update(self):
+        with torch.no_grad():
+            for k, v in self.model.state_dict().items():
+                if k in self.ema_state:
+                    self.ema_state[k] = self.decay * self.ema_state[k] + (1 - self.decay) * v
+    
+    def apply(self):
+        self.model.load_state_dict(self.ema_state, strict=False)
+
+# -----------------------------
+# TRAIN WITH GRADIENT ACCUMULATION
+# -----------------------------
+def train_epoch(model, loader, criterion, optimizer, scaler, scheduler, device, 
+                accum_steps=2, grad_clip=1.0):
+    model.train()
+    preds, labels = [], []
+    total_loss = 0
+    optimizer.zero_grad()
+
+    for i, (x, mask, y) in enumerate(tqdm(loader, desc="train", leave=False)):
+        x, mask, y = x.to(device), mask.to(device), y.to(device)
+        
+        with torch.cuda.amp.autocast(device.type == 'cuda'):
+            out = model(x, mask)
+            loss = criterion(out, y) / accum_steps
+
+        if torch.isnan(loss) or torch.isinf(loss):
+            continue
+
+        scaler.scale(loss).backward()
+        
+        if (i + 1) % accum_steps == 0:
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+            scaler.step(optimizer)
+            scaler.update()
+            optimizer.zero_grad()
+            scheduler.step()
+
+        total_loss += loss.item() * accum_steps
+        with torch.no_grad():
+            p = torch.sigmoid(out).detach().cpu().numpy()
+            preds.extend(p)
+            labels.extend(y.cpu().numpy())
+
+    return total_loss / max(1, len(loader)), np.array(preds), np.array(labels)
+
+# -----------------------------
+# EVAL
+# -----------------------------
+@torch.no_grad()
+def evaluate(model, loader, criterion, device):
+    model.eval()
+    loss_sum, preds, labels = 0, [], []
+
+    for x, mask, y in loader:
+        x, mask, y = x.to(device), mask.to(device), y.to(device)
+        with torch.cuda.amp.autocast(device.type == 'cuda'):
+            logits = model(x, mask)
+            loss = criterion(logits, y)
+            loss_sum += loss.item()
+            out = torch.sigmoid(logits)
+        preds.extend(out.cpu().numpy())
+        labels.extend(y.cpu().numpy())
+
+    preds, labels = np.array(preds), np.array(labels)
+    if len(np.unique(labels)) < 2:
+        return loss_sum / max(1, len(loader)), 0.5, 0.0, 0.5, preds, labels
+
+    return (
+        loss_sum / len(loader),
+        roc_auc_score(labels, preds),
+        f1_score(labels, (preds > 0.5).astype(int), zero_division=0),
+        accuracy_score(labels, (preds > 0.5).astype(int)),
+        preds, labels
+    )
+
+# -----------------------------
+# SAVE UTILS
+# -----------------------------
+def save_roc(y, p, path):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if len(np.unique(y)) < 2:
+        return
+    from sklearn.metrics import roc_curve
+    fpr, tpr, thr = roc_curve(y, p)
+    with open(path, "w") as f:
+        import csv
+        w = csv.writer(f)
+        w.writerow(["fpr", "tpr", "thr"])
+        for a, b, c in zip(fpr, tpr, thr):
+            w.writerow([a, b, c])
+
+def save_metrics(metrics, path):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(metrics, f, indent=2)
+
+# -----------------------------
+# MAIN
+# -----------------------------
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--model', required=True)
+    ap.add_argument('--data-dir', type=str, default='../data/training_setA')
+    ap.add_argument('--epochs', type=int, default=50)
+    ap.add_argument('--batch-size', type=int, default=32)
+    ap.add_argument('--lr', type=float, default=1e-4)
+    ap.add_argument('--seq-len', type=int, default=48)
+    ap.add_argument('--dummy', action='store_true')
+    ap.add_argument('--save-dir', type=str, default='../models')
+    ap.add_argument('--log-dir', type=str, default='../logs')
+    ap.add_argument('--patience', type=int, default=10)
+    ap.add_argument('--accum-steps', type=int, default=2)
+    ap.add_argument('--grad-clip', type=float, default=1.0)
+    ap.add_argument('--warmup', type=int, default=1000)
+    ap.add_argument('--ema-decay', type=float, default=0.999)
+    ap.add_argument('--seed', type=int, default=42)
+    args = ap.parse_args()
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Device: {device}")
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+
+    Path(args.save_dir).mkdir(parents=True, exist_ok=True)
+    Path(args.log_dir).mkdir(parents=True, exist_ok=True)
+
+    # MODEL
+    model = create_model(args.model, input_size=40).to(device)
+    print(f"Parameters: {count_parameters(model):,}")
+
+    # DATA
+    if args.dummy:
+        from dataset import SyntheticSepsisBatch
+        train_ds = SyntheticSepsisBatch(512, args.seq_len, 40)
+        val_ds = SyntheticSepsisBatch(128, args.seq_len, 40)
+        train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True)
+        val_loader = DataLoader(val_ds, batch_size=args.batch_size)
+    else:
+        from dataset import create_dataloaders
+        train_loader, val_loader = create_dataloaders(args.data_dir, args.seq_len, args.batch_size)
+
+    # POS WEIGHT
+    all_y = [y.numpy() for _, _, y in train_loader]
+    pos = np.mean(np.concatenate(all_y))
+    pos_weight = torch.tensor([(1-pos)/max(pos,1e-6)], device=device)
+    print(f"Positive weight: {pos_weight.item():.2f}")
+    
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
+
+    # SCHEDULER
+    total_steps = args.epochs * len(train_loader) // args.accum_steps
+    scheduler = WarmupCosine(optimizer, args.warmup, total_steps)
+    scaler = torch.cuda.amp.GradScaler(enabled=device.type=='cuda')
+    
+    # EMA
+    ema = ModelEMA(model, decay=args.ema_decay)
+
+    # TRAINING
+    best_auc, no_improve = 0, 0
+    best_epoch, best_f1 = 0, 0
+    history = {'loss': [], 'auc': [], 'f1': [], 'smoothed_auc': []}
+    smoothed_auc = []
+
+    print(f"\n🚀 STABLE Training: {args.epochs} epochs")
+    print(f"   Batch: {args.batch_size}, LR: {args.lr}, Accum: {args.accum_steps}")
+    print(f"   Warmup: {args.warmup}, Grad clip: {args.grad_clip}, EMA: {args.ema_decay}")
+    print("="*70)
+
+    for epoch in range(args.epochs):
+        t0 = time.time()
+        
+        # TRAIN
+        train_loss, tr_p, tr_y = train_epoch(
+            model, train_loader, criterion, optimizer, scaler, scheduler, device,
+            accum_steps=args.accum_steps, grad_clip=args.grad_clip
+        )
+        
+        # UPDATE EMA
+        ema.update()
+        
+        # EVAL WITH EMA
+        ema.apply()
+        va_loss, auc, f1, acc, vp, vy = evaluate(model, val_loader, criterion, device)
+        
+        # RESTORE MODEL
+        model.train()
+        
+        # SMOOTHING
+        smoothed_auc.append(auc)
+        if len(smoothed_auc) > 5:
+            smoothed_auc.pop(0)
+        avg_auc = np.mean(smoothed_auc)
+        
+        dt = time.time() - t0
+        
+        history['loss'].append(float(train_loss))
+        history['auc'].append(float(auc))
+        history['f1'].append(float(f1))
+        history['smoothed_auc'].append(float(avg_auc))
+        
+        print(f"Epoch {epoch+1:2d}/{args.epochs} | loss={train_loss:.4f} | auc={auc:.4f} | "
+              f"smoothed={avg_auc:.4f} | f1={f1:.4f} | {dt:.1f}s")
+        
+        if auc > best_auc:
+            best_auc, best_f1, best_epoch = auc, f1, epoch+1
+            no_improve = 0
+            torch.save(model.state_dict(), f"{args.save_dir}/{args.model}_best.pt")
+            print(f"  ✅ New best!")
+        else:
+            no_improve += 1
+            if no_improve >= args.patience:
+                print(f"\n⚠️ Early stopping at epoch {epoch+1}")
+                break
+
+    print("="*70)
+    print(f"🏆 Best AUROC: {best_auc:.4f} (epoch {best_epoch})")
+    print(f"🎯 Best F1: {best_f1:.4f}")
+    
+    # THRESHOLD OPT
+    from sklearn.metrics import precision_recall_curve
+    prec, rec, thr = precision_recall_curve(vy, vp)
+    f1_scores = 2 * prec * rec / (prec + rec + 1e-8)
+    best_t = thr[np.argmax(f1_scores)]
+    print(f"📊 Optimal threshold: {best_t:.3f}")
+    
+    # SAVE
+    save_roc(vy, vp, Path(args.log_dir) / f"{args.model}_roc.csv")
+    
+    metrics = {
+        'model': args.model,
+        'best_auc': float(best_auc),
+        'best_f1': float(best_f1),
+        'best_threshold': float(best_t),
+        'best_epoch': int(best_epoch),
+        'epochs_trained': epoch + 1,
+        'config': {
+            'batch_size': args.batch_size,
+            'lr': args.lr,
+            'accum_steps': args.accum_steps,
+            'grad_clip': args.grad_clip,
+            'warmup': args.warmup,
+            'ema_decay': args.ema_decay
+        },
+        'history': history
+    }
+    save_metrics(metrics, Path(args.log_dir) / f"{args.model}_metrics.json")
+    
+    # PLOT
+    try:
+        import matplotlib.pyplot as plt
+        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+        axes[0].plot(history['loss'], label='Train Loss')
+        axes[0].set_xlabel('Epoch')
+        axes[0].set_ylabel('Loss')
+        axes[0].set_title('Training Loss')
+        axes[0].legend()
+        axes[0].grid(alpha=0.3)
+        
+        axes[1].plot(history['auc'], label='AUROC', color='green', alpha=0.5)
+        axes[1].plot(history['smoothed_auc'], label='Smoothed AUROC', color='green', linewidth=2)
+        axes[1].plot(history['f1'], label='F1', color='orange', alpha=0.5)
+        axes[1].set_xlabel('Epoch')
+        axes[1].set_ylabel('Score')
+        axes[1].set_title('Validation Metrics (Smoothed)')
+        axes[1].legend()
+        axes[1].grid(alpha=0.3)
+        
+        plt.tight_layout()
+        plt.savefig(Path(args.log_dir) / f"{args.model}_training.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"✅ Plot saved: {args.log_dir}/{args.model}_training.png")
+    except Exception as e:
+        print(f"⚠️ Plot error: {e}")
+    
+    print("\n🎉 TRAINING COMPLETE!")
+
+if __name__ == "__main__":
+    main()

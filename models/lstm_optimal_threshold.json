@@ -1,0 +1,10 @@
+{
+  "model": "lstm",
+  "default_threshold": 0.5,
+  "default_f1": 0.8941176470588236,
+  "optimal_threshold": 0.5542713567839197,
+  "optimal_f1": 0.8976377952755905,
+  "clinical_threshold": 0.5542713567839197,
+  "clinical_f1": 0.8976377952755905,
+  "improvement": 0.0035201482167669385
+}

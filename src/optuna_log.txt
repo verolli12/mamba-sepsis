@@ -1,0 +1,96 @@
+nohup: ignoring input
+[I 2026-05-01 22:05:28,446] A new study created in memory with name: no-name-eeb3207d-7594-4f1c-b37a-d10bfb941458
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+[I 2026-05-01 23:44:50,593] Trial 0 finished with value: 0.9784995211516303 and parameters: {'lr': 5.6115164153345e-05, 'batch_size': 16, 'weight_decay': 6.251373574521755e-05, 'grad_clip': 0.6560186404424365, 'd_model': 256}. Best is trial 0 with value: 0.9784995211516303.
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:95: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+/home/verolli/projects/mamba/src/optimize_hyperparams.py:116: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(device.type == 'cuda'):
+[I 2026-05-02 00:11:51,599] Trial 1 finished with value: 0.9765476528947882 and parameters: {'lr': 0.00015930522616241006, 'batch_size': 16, 'weight_decay': 0.0008123245085588687, 'grad_clip': 1.3324426408004217, 'd_model': 64}. Best is trial 0 with value: 0.9784995211516303.
+
+🚀 OPTUNA SEARCH
+============================================================
+📂 Найдено файлов: 20336
+⏳ Computing normalization statistics...
+  ✅ Вычислено из 500 файлов
+  Mean shape: (40,), Std shape: (40,)
+📊 Всего: 20336, Train: 14236, Val: 4067, Test: 2033
+📈 Train batches: 889, Val batches: 255, Test batches: 128
+📂 Найдено файлов: 20336
+⏳ Computing normalization statistics...
+  ✅ Вычислено из 500 файлов
+  Mean shape: (40,), Std shape: (40,)
+📊 Всего: 20336, Train: 14236, Val: 4067, Test: 2033
+📈 Train batches: 889, Val batches: 255, Test batches: 128
+
+🏆 BEST RESULT
+============================================================
+Best AUROC: 0.9785
+
+Best params:
+lr: 5.6115164153345e-05
+batch_size: 16
+weight_decay: 6.251373574521755e-05
+grad_clip: 0.6560186404424365
+d_model: 256
+
+✅ Saved results

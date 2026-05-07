@@ -1,0 +1,10 @@
+{
+  "model": "real_mamba",
+  "default_threshold": 0.5,
+  "default_f1": 0.8803088803088803,
+  "optimal_threshold": 0.8276381909547739,
+  "optimal_f1": 0.8976377952755905,
+  "clinical_threshold": 0.8276381909547739,
+  "clinical_f1": 0.8976377952755905,
+  "improvement": 0.017328914966710185
+}
