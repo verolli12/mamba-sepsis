@@ -59,7 +59,8 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--val-split", type=float, default=0.2)
     ap.add_argument("--test-split", type=float, default=0.1)
-    ap.add_argument("--threshold", type=float, default=0.5)
+    ap.add_argument("--threshold", type=float, default=None, help="Fixed threshold. If omitted, loaded from --threshold-json or defaults to 0.5")
+    ap.add_argument("--threshold-json", type=str, default=None, help="Path to JSON with {'best_threshold': float} obtained on validation split")
     ap.add_argument("--manifest", type=str, default="../logs/split_manifest_test_eval.json")
     ap.add_argument("--out", type=str, default="../logs/test_metrics.json")
     ap.add_argument("--roc-out", type=str, default="../logs/test_roc.csv")
@@ -98,12 +99,20 @@ def main():
         p, r, _ = precision_recall_curve(y_true, y_prob)
         pr_auc = auc(r, p)
 
-    y_pred = (y_prob >= args.threshold).astype(int)
+    if args.threshold is not None:
+        threshold = float(args.threshold)
+    elif args.threshold_json is not None:
+        with open(args.threshold_json, "r", encoding="utf-8") as f:
+            threshold = float(json.load(f)["best_threshold"])
+    else:
+        threshold = 0.5
+
+    y_pred = (y_prob >= threshold).astype(int)
     metrics = {
         "model": args.model,
         "checkpoint": args.checkpoint,
         "seed": args.seed,
-        "threshold": args.threshold,
+        "threshold": threshold,
         "test_loss": float(test_loss),
         "test_auc": float(test_auc),
         "test_pr_auc": float(pr_auc),
