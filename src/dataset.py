@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""
-DataLoader для PhysioNet 2019 Sepsis Prediction
-ИСПРАВЛЕННАЯ ВЕРСИЯ
-"""
-
 import torch
 import numpy as np
 import pandas as pd
@@ -61,16 +56,16 @@ class PhysioNetSepsisDataset(Dataset):
         else:
             print("  ⚠️  Используем дефолтные значения (mean=0, std=1)")
 
+
     def compute_stats_from_indices(self, indices, max_files=None):
+
         """Считает mean/std ТОЛЬКО по заданному подмножеству (например, train)."""
         if not self.normalize:
             return
         print("⏳ Computing normalization statistics from TRAIN split only...")
         all_values = []
         valid_files = 0
-        failed_files = 0
-        selected = indices if max_files is None else indices[:max_files]
-        for idx in selected:
+
             file = self.files[idx]
             try:
                 df = pd.read_csv(file, sep='|')
@@ -89,7 +84,7 @@ class PhysioNetSepsisDataset(Dataset):
             self.mean = np.nanmean(all_values, axis=0).astype(np.float32)
             self.std = np.nanstd(all_values, axis=0).astype(np.float32)
             self.std = np.clip(self.std, 1e-6, 1e6)
-            print(f"  ✅ Вычислено из {valid_files} TRAIN-файлов (ошибок чтения: {failed_files})")
+
         else:
             print("  ⚠️  TRAIN-статистики не вычислены, оставляем mean=0/std=1")
     
@@ -156,6 +151,7 @@ def create_dataloaders(data_dir, seq_length=48, batch_size=32,
         dataset, [n_train, n_val, n_test], generator=torch.Generator().manual_seed(seed)
     )
 
+
     if split_manifest_path is not None:
         manifest_path = Path(split_manifest_path)
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -178,6 +174,7 @@ def create_dataloaders(data_dir, seq_length=48, batch_size=32,
     dataset.normalize = normalize
     if normalize:
         dataset.compute_stats_from_indices(train_dataset.indices, max_files=max_stats_files)
+
     
     train_loader = DataLoader(
         train_dataset, 

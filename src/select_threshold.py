@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Select decision threshold on validation split only.
 
-This script MUST be run after training and before final test evaluation.
-"""
 
 import argparse
 import json
@@ -10,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+
 from sklearn.metrics import f1_score, precision_recall_curve
 
 from dataset import create_dataloaders
@@ -36,7 +34,7 @@ def main():
     ap.add_argument("--seq-len", type=int, default=48)
     ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--val-split", type=float, default=0.1)
+
     ap.add_argument("--test-split", type=float, default=0.1)
     ap.add_argument("--out", type=str, default="../logs/threshold.json")
     ap.add_argument("--manifest", type=str, default="../logs/split_manifest_threshold.json")

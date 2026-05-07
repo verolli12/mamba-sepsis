@@ -57,7 +57,7 @@ def main():
     ap.add_argument("--seq-len", type=int, default=48)
     ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--val-split", type=float, default=0.1)
+
     ap.add_argument("--test-split", type=float, default=0.1)
     ap.add_argument("--threshold", type=float, default=None, help="Fixed threshold. If omitted, loaded from --threshold-json or defaults to 0.5")
     ap.add_argument("--threshold-json", type=str, default=None, help="Path to JSON with {'best_threshold': float} obtained on validation split")
