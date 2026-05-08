@@ -1,156 +1,203 @@
 #!/usr/bin/env python3
 """
-Обучение всех моделей для курсовой работы
-ИСПРАВЛЕННАЯ ВЕРСИЯ - с защитой от NaN
+STABLE TRAINING PIPELINE v2.4 — CRITICAL FIXES APPLIED
+✅ Fixed pos_weight calculation (memory safe)
+✅ Fixed loss averaging with NaN skipping
+✅ Fixed num_workers for Windows
+✅ Safe tensor handling (.cpu().numpy())
+✅ Robust EMA save/restore logic
+✅ Gradient accumulation with correct scheduler stepping
+✅ Warmup + Cosine annealing scheduler
 """
 
 import argparse
 import sys
 import time
-from pathlib import Path
+import json
 import numpy as np
-
 import torch
 import torch.nn as nn
+from pathlib import Path
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score, f1_score, accuracy_score
 
-sys.path.insert(0, str(Path(__file__).parent))
+# Fix __file__ for exec() compatibility
+if '__file__' not in globals():
+    __file__ = sys.argv[0] if sys.argv else 'train.py'
 
+sys.path.insert(0, str(Path(__file__).parent))
 from models import create_model, count_parameters
 
 
-def train_epoch(model, loader, criterion, optimizer, device, epoch):
-    """Обучение на одной эпохе с защитой от NaN"""
-    model.train()
-    total_loss = 0
-    all_preds = []
-    all_labels = []
+# -----------------------------
+# WARMUP + COSINE SCHEDULER
+# -----------------------------
+class WarmupCosine:
+    def __init__(self, optimizer, warmup_steps, total_steps, min_lr=1e-7):
+        self.optimizer = optimizer
+        self.warmup_steps = warmup_steps
+        self.total_steps = total_steps
+        self.min_lr = min_lr
+        self.base_lrs = [g['lr'] for g in optimizer.param_groups]
+        self.step_num = 0
+
+    def step(self):
+        self.step_num += 1
+        for i, pg in enumerate(self.optimizer.param_groups):
+            base_lr = self.base_lrs[i]
+            if self.step_num < self.warmup_steps:
+                lr = base_lr * self.step_num / max(1, self.warmup_steps)
+            else:
+                progress = (self.step_num - self.warmup_steps) / max(1, self.total_steps - self.warmup_steps)
+                lr = self.min_lr + (base_lr - self.min_lr) * 0.5 * (1 + np.cos(np.pi * progress))
+            pg['lr'] = lr
+
+
+# -----------------------------
+# EMA (Exponential Moving Average)
+# -----------------------------
+class ModelEMA:
+    def __init__(self, model, decay=0.999):
+        self.model = model
+        self.decay = decay
+        self.ema_state = {k: v.clone().detach() for k, v in model.state_dict().items()}
+        self.original_state = None
+        
+    def update(self):
+        """Обновить EMA состояние после шага оптимизатора"""
+        with torch.no_grad():
+            for k, v in self.model.state_dict().items():
+                if k in self.ema_state:
+                    self.ema_state[k] = self.decay * self.ema_state[k] + (1 - self.decay) * v
     
-    processed_batches = 0
-    for batch_idx, (x, mask, y) in enumerate(tqdm(loader, desc="Training", leave=False)):
+    def apply(self):
+        """Применить EMA веса к модели для evaluation"""
+        with torch.no_grad():
+            self.model.load_state_dict(self.ema_state, strict=False)
+    
+    def store_original(self):
+        """Сохранить текущие веса модели"""
+        self.original_state = {k: v.clone() for k, v in self.model.state_dict().items()}
+    
+    def restore_original(self):
+        """Восстановить сохранённые веса модели"""
+        if self.original_state is not None:
+            with torch.no_grad():
+                self.model.load_state_dict(self.original_state)
+
+
+# -----------------------------
+# TRAIN WITH GRADIENT ACCUMULATION
+# -----------------------------
+def train_epoch(model, loader, criterion, optimizer, scaler, scheduler, device, 
+                accum_steps=2, grad_clip=1.0):
+    """
+    Training loop с градиентной аккумуляцией.
+    
+    Важно:
+    - loss делится на accum_steps перед backward()
+    - optimizer.step() и scheduler.step() вызываются только каждый accum_steps шаг
+    """
+    model.train()
+    preds, labels = [], []
+    total_loss = 0
+    valid_batches = 0  # 🔥 Считаем только успешные батчи
+    optimizer.zero_grad()
+
+    for i, (x, mask, y) in enumerate(tqdm(loader, desc="train", leave=False)):
         x, mask, y = x.to(device), mask.to(device), y.to(device)
         
-        optimizer.zero_grad(set_to_none=True)
-        
-        try:
+        with torch.amp.autocast('cuda' if device.type == 'cuda' else 'cpu', 
+                               enabled=(device.type == 'cuda')):
             out = model(x, mask)
-            
-            # Проверка на NaN
-            if torch.isnan(out).any():
-                print("⚠️ NaN in output, skipping batch")
-                continue
-            
-            loss = criterion(out, y)
-            
-            if torch.isnan(loss) or torch.isinf(loss):
-                print("⚠️ NaN in loss, skipping batch")
-                continue
-            
-            loss.backward()
-            
-            # Gradient clipping
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
-            
-            optimizer.step()
-            processed_batches += 1
-            
-            # 🔍 DEBUG: Проверка градиентов
-            if batch_idx == 0 and epoch == 1:
-                total_norm = 0
-                for p in model.parameters():
-                    if p.grad is not None:
-                        param_norm = p.grad.detach().data.norm(2)
-                        total_norm += param_norm.item() ** 2
-                total_norm = total_norm ** 0.5
-                print(f"🔍 Gradient norm: {total_norm:.6f}")
-                if total_norm < 1e-7:
-                    print("⚠️  ГРАДИЕНТЫ ИСЧЕЗАЮТ! Модель не обучается!")
-            
-            total_loss += loss.item()
-            
-            # Безопасные предсказания
-            with torch.no_grad():
-                probs = torch.sigmoid(out).cpu().numpy()
-                probs = np.nan_to_num(probs, nan=0.5, posinf=0.999, neginf=0.001)
-                probs = np.clip(probs, 0.001, 0.999)
-            
-            all_preds.extend(probs.tolist())
-            all_labels.extend(y.cpu().numpy())
-            
-        except Exception as e:
-            print(f"⚠️ Error in batch: {e}")
+            loss = criterion(out, y) / accum_steps
+
+        # Пропускаем батчи с нестабильным loss
+        if torch.isnan(loss) or torch.isinf(loss):
+            optimizer.zero_grad()
             continue
-    
-    if len(all_preds) == 0:
-        return float('inf'), [], []
-    
-    return total_loss / max(processed_batches, 1), all_preds, all_labels
+
+        valid_batches += 1  # 🔥 Считаем только успешные батчи
+        scaler.scale(loss).backward()
+        
+        # Только каждый accum_steps шаг делаем оптимизацию
+        if (i + 1) % accum_steps == 0:
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+            scaler.step(optimizer)
+            scaler.update()
+            optimizer.zero_grad()
+            # 🔥 scheduler.step() ТОЛЬКО после реального optimizer.step()
+            scheduler.step()
+
+        total_loss += loss.item() * accum_steps
+        with torch.no_grad():
+            p = torch.sigmoid(out).detach().cpu().numpy()
+            preds.extend(p)
+            labels.extend(y.cpu().numpy())
+
+    return total_loss / max(1, valid_batches), np.array(preds), np.array(labels)
 
 
+# -----------------------------
+# EVALUATE
+# -----------------------------
 @torch.no_grad()
 def evaluate(model, loader, criterion, device):
-    """Валидация с защитой от NaN"""
+    """Evaluation без сглаживания — честные метрики"""
     model.eval()
-    total_loss = 0
-    all_preds = []
-    all_labels = []
-    
-    for x, mask, y in tqdm(loader, desc="Evaluating", leave=False):
+    loss_sum, preds, labels = 0, [], []
+
+    for x, mask, y in loader:
         x, mask, y = x.to(device), mask.to(device), y.to(device)
         
-        try:
-            out = model(x, mask)
-            loss = criterion(out, y)
-            total_loss += loss.item()
-            
-            probs = torch.sigmoid(out).detach().cpu().numpy()
-            probs = np.nan_to_num(probs, nan=0.5, posinf=0.999, neginf=0.001)
-            probs = np.clip(probs, 0.001, 0.999)
-            
-            all_preds.extend(probs.tolist())
-            all_labels.extend(y.cpu().numpy())
-            
-        except Exception as e:
-            print(f"⚠️ Error in evaluate: {e}")
-            continue
+        with torch.amp.autocast('cuda' if device.type == 'cuda' else 'cpu',
+                               enabled=(device.type == 'cuda')):
+            logits = model(x, mask)
+            loss = criterion(logits, y)
+            loss_sum += loss.item()
+            out = torch.sigmoid(logits)
+        
+        preds.extend(out.cpu().numpy())
+        labels.extend(y.cpu().numpy())
+
+    preds, labels = np.array(preds), np.array(labels)
     
-    # Конвертация
-    all_preds = np.array(all_preds, dtype=np.float32)
-    all_labels = np.array(all_labels, dtype=np.float32)
-    
-    # Очистка
-    valid = np.isfinite(all_preds) & np.isfinite(all_labels)
-    all_preds = all_preds[valid]
-    all_labels = all_labels[valid]
-    
-    if len(all_preds) == 0:
-        return total_loss / max(len(loader), 1), 0.5, 0.0, 0.5
-    
-    # Безопасные метрики
-    try:
-        auroc = roc_auc_score(all_labels, all_preds)
-    except Exception as e:
-        print(f"⚠️ AUROC error: {e}")
-        auroc = 0.5
-    
-    try:
-        f1 = f1_score(all_labels, (all_preds > 0.5).astype(int), zero_division=0)
-    except Exception as e:
-        print(f"⚠️ F1 error: {e}")
-        f1 = 0.0
-    
-    try:
-        acc = accuracy_score(all_labels, (all_preds > 0.5).astype(int))
-    except Exception as e:
-        print(f"⚠️ Accuracy error: {e}")
-        acc = 0.5
-    
-    return total_loss / max(len(loader), 1), auroc, f1, acc
+    if len(np.unique(labels)) < 2:
+        return loss_sum / max(1, len(loader)), 0.5, 0.0, 0.5, preds, labels
+
+    return (
+        loss_sum / len(loader),
+        roc_auc_score(labels, preds),
+        f1_score(labels, (preds > 0.5).astype(int), zero_division=0),
+        accuracy_score(labels, (preds > 0.5).astype(int)),
+        preds, labels
+    )
 
 
-def main():
+# -----------------------------
+# SAVE UTILS
+# -----------------------------
+def save_roc(y_true, y_prob, path):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if len(np.unique(y_true)) < 2:
+        return
+    from sklearn.metrics import roc_curve
+    fpr, tpr, thr = roc_curve(y_true, y_prob)
+    with open(path, "w", newline='') as f:
+        import csv
+        w = csv.writer(f)
+        w.writerow(["fpr", "tpr", "threshold"])
+        for a, b, c in zip(fpr, tpr, thr):
+            w.writerow([a, b, c])
+
+def save_metrics(metrics, path):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(metrics, f, indent=2)
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', type=str, required=True,
                        choices=['lstm', 'transformer', 'real_mamba', 'grud'])
