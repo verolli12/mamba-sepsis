@@ -7,7 +7,6 @@ PhysioNet 2019 Sepsis Prediction Challenge
 import torch
 import torch.nn as nn
 import math
-from mamba_ssm import Mamba
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -91,12 +90,23 @@ class PositionalEncoding(nn.Module):
 
 
 # ═══════════════════════════════════════════════════════════════
-# 3. REAL MAMBA CLASSIFIER
+# 3. REAL MAMBA CLASSIFIER (optional import)
 # ═══════════════════════════════════════════════════════════════
+try:
+    from mamba_ssm import Mamba
+    MAMBA_AVAILABLE = True
+except ImportError:
+    MAMBA_AVAILABLE = False
+    print("⚠️  mamba_ssm not installed. real_mamba model will not be available.")
+
+
 class RealMambaClassifier(nn.Module):
     def __init__(self, input_size=40, d_model=128, d_state=16, n_layer=4, 
-                 d_conv=4, expand=2, dropout=0.3):  # Убрали bidirectional
+                 d_conv=4, expand=2, dropout=0.3):
         super().__init__()
+        if not MAMBA_AVAILABLE:
+            raise ImportError("mamba_ssm is not installed. Install it with: pip install mamba-ssm")
+        
         self.d_model = d_model
         self.n_layer = n_layer
         
@@ -107,8 +117,7 @@ class RealMambaClassifier(nn.Module):
         
         for i in range(n_layer):
             self.mamba_layers.append(
-                Mamba(d_model=d_model, d_state=d_state, d_conv=d_conv,
-                      expand=expand)  # Убрали bidirectional
+                Mamba(d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand)
             )
             self.norms.append(nn.LayerNorm(d_model))
         

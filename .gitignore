@@ -1,8 +1,8 @@
-```gitignore
-# Python cache
-__pycache__/
+```
+# Compiled Python files
 *.pyc
+__pycache__/
 
-# Original rules preserved
-*.log
+# Python cache directories
+**/__pycache__/
 ```
