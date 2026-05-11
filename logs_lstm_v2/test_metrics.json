@@ -1,0 +1,13 @@
+{
+  "model": "lstm",
+  "checkpoint": "../models_lstm_v2/lstm_best.pt",
+  "seed": 42,
+  "threshold": 0.94,
+  "test_loss": 0.042112062248634174,
+  "test_auc": 0.990466871680179,
+  "test_pr_auc": 0.8704828820315667,
+  "test_f1": 0.8985507246376812,
+  "test_accuracy": 0.9931136251844564,
+  "n_test": 2033,
+  "positive_rate_test": 0.035907525569200516
+}

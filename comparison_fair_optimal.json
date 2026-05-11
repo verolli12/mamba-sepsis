@@ -1,0 +1,34 @@
+{
+  "fair_comparison_at_optimal_threshold": [
+    {
+      "model": "LSTM v2",
+      "auc": 0.989185245945728,
+      "f1": 0.9,
+      "precision": 0.984375,
+      "recall": 0.8289473684210527,
+      "threshold": 0.9404296875
+    },
+    {
+      "model": "Transformer v2",
+      "auc": 0.9776880563698465,
+      "f1": 0.7703703703703704,
+      "precision": 0.8813559322033898,
+      "recall": 0.6842105263157895,
+      "threshold": 0.939453125
+    },
+    {
+      "model": "Mamba v2",
+      "auc": 0.9740035769034237,
+      "f1": 0.8470967741935485,
+      "precision": 0.86,
+      "recall": 0.85,
+      "threshold": 0.7841796875
+    }
+  ],
+  "best_by_metric": {
+    "auc": "LSTM v2",
+    "f1": "LSTM v2",
+    "precision": "LSTM v2",
+    "recall": "Mamba v2"
+  }
+}

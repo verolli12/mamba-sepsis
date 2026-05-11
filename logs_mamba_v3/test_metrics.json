@@ -1,0 +1,13 @@
+{
+  "model": "real_mamba",
+  "checkpoint": "../models_mamba_v3/real_mamba_best.pt",
+  "seed": 42,
+  "threshold": 0.943,
+  "test_loss": 0.11907048639841378,
+  "test_auc": 0.9743989376572546,
+  "test_pr_auc": 0.8191457957444678,
+  "test_f1": 0.8372093023255814,
+  "test_accuracy": 0.9896704377766847,
+  "n_test": 2033,
+  "positive_rate_test": 0.035907525569200516
+}

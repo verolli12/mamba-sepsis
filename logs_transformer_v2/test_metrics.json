@@ -1,0 +1,13 @@
+{
+  "model": "transformer",
+  "checkpoint": "../models_transformer_v2/transformer_best.pt",
+  "seed": 42,
+  "threshold": 0.939,
+  "test_loss": 0.6496996246278286,
+  "test_auc": 0.8916480290746437,
+  "test_pr_auc": 0.7179035136225553,
+  "test_f1": 0.7480916030534351,
+  "test_accuracy": 0.9837678307919331,
+  "n_test": 2033,
+  "positive_rate_test": 0.035907525569200516
+}

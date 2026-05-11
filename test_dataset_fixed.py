@@ -1,7 +1,3 @@
-#!/usr/bin/env python3
-"""
-Проверка: когда вычисляются mean/std?
-"""
 
 import sys
 import numpy as np
@@ -9,15 +5,10 @@ import pandas as pd
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 
-# ═══════════════════════════════════════════════════════════════
-# ЗАГРУЗКА ДАННЫХ
-# ═══════════════════════════════════════════════════════════════
-
-data_dir = Path('data/physionet.org/files/challenge-2019/1.0.0/training/training_setA')
+data_dir = Path('/home/verolli/fedmamba-project/physionet.org/files/challenge-2019/1.0.0/training/training_setA')
 files = sorted(list(data_dir.glob('*.psv')))
 
-print(f"📂 Найдено файлов: {len(files)}")
-print("⏳ Загружаю данные... (может занять минуту)")
+print(f"Найдено файлов: {len(files)}")
 
 all_data = []
 all_labels = []
@@ -25,7 +16,7 @@ loaded_count = 0
 
 for i, file in enumerate(files):
     if (i + 1) % 2000 == 0:
-        print(f"   ... {i+1}/{len(files)}")
+        print(f"{i+1}/{len(files)}")
     
     try:
         df = pd.read_csv(file, sep='|')
@@ -41,24 +32,16 @@ for i, file in enumerate(files):
 all_data = np.vstack(all_data)
 all_labels = np.array(all_labels)
 
-print(f"✅ Загружено: {all_data.shape[0]} пациентов, {all_data.shape[1]} признаков")
-
-# ═══════════════════════════════════════════════════════════════
-# ВЫЧИСЛЯЕМ MEAN/STD НА ВСЕХ ДАННЫХ
-# ═══════════════════════════════════════════════════════════════
+print(f"Загружено: {all_data.shape[0]} пациентов, {all_data.shape[1]} признаков")
 
 mean_all = np.nanmean(all_data, axis=0)
 std_all = np.nanstd(all_data, axis=0)
 
-print(f"\n📊 MEAN/STD на ВСЕХ {all_data.shape[0]} строках:")
+print(f"\nMEAN/STD на ВСЕХ {all_data.shape[0]} строках:")
 print(f"  Mean[0:5]: {mean_all[:5]}")
 print(f"  Std[0:5]:  {std_all[:5]}")
 
-# ═══════════════════════════════════════════════════════════════
-# РАЗБИВАЕМ ИНДЕКСЫ НА TRAIN/VAL/TEST
-# ═══════════════════════════════════════════════════════════════
-
-print(f"\n⏳ Разбиваю данные 80/10/10...")
+print(f"\nРазбиваю данные 80/10/10...")
 
 indices = np.arange(len(all_labels))
 train_idx, temp_idx = train_test_split(
@@ -68,26 +51,19 @@ val_idx, test_idx = train_test_split(
     temp_idx, test_size=0.5, random_state=42, stratify=all_labels[temp_idx]
 )
 
-print(f"✅ Разбиение выполнено:")
+print(f"Разбиение выполнено:")
 print(f"   TRAIN: {len(train_idx)} ({100*len(train_idx)/len(all_labels):.0f}%)")
 print(f"   VAL:   {len(val_idx)} ({100*len(val_idx)/len(all_labels):.0f}%)")
 print(f"   TEST:  {len(test_idx)} ({100*len(test_idx)/len(all_labels):.0f}%)")
 
-# ═══════════════════════════════════════════════════════════════
-# ВЫЧИСЛЯЕМ MEAN/STD ТОЛЬКО НА TRAIN
-# ═══════════════════════════════════════════════════════════════
 
 train_data = all_data[train_idx]
 mean_train = np.nanmean(train_data, axis=0)
 std_train = np.nanstd(train_data, axis=0)
 
-print(f"\n📊 MEAN/STD ТОЛЬКО на TRAIN {train_data.shape[0]} строках:")
+print(f"\nMEAN/STD ТОЛЬКО на TRAIN {train_data.shape[0]} строках:")
 print(f"  Mean[0:5]: {mean_train[:5]}")
 print(f"  Std[0:5]:  {std_train[:5]}")
-
-# ═══════════════════════════════════════════════════════════════
-# СРАВНИВАЕМ mean_all vs mean_train
-# ═══════════════════════════════════════════════════════════════
 
 print("\n" + "="*70)
 print("СРАВНЕНИЕ: mean/std на ALL vs на TRAIN")
@@ -100,14 +76,10 @@ print(f"\nСредняя разница в mean: {diff_mean:.6f}")
 print(f"Средняя разница в std:  {diff_std:.6f}")
 
 if diff_mean < 0.1:
-    print("\n✅ Разницы МАЛЕНЬКИЕ → нормально")
+    print("\nРазницы МАЛЕНЬКИЕ → нормально")
     print("   (train = 80% всех данных, поэтому похожа статистика)")
 else:
-    print("\n⚠️  Разницы БОЛЬШИЕ → что-то не так")
-
-# ═══════════════════════════════════════════════════════════════
-# ПРОВЕРЯЕМ БАЛАНС КЛАССОВ
-# ═══════════════════════════════════════════════════════════════
+    print("\nРазницы БОЛЬШИЕ → что-то не так")
 
 print("\n" + "="*70)
 print("БАЛАНС КЛАССОВ")
@@ -133,10 +105,10 @@ diff_val = abs(train_sepsis_pct - val_sepsis_pct)
 diff_test = abs(train_sepsis_pct - test_sepsis_pct)
 
 if diff_val < 1 and diff_test < 1:
-    print("✅ Баланс классов одинаковый во всех наборах!")
-    print("✅ Разделение выполнено ПРАВИЛЬНО")
+    print("Баланс классов одинаковый во всех наборах!")
+    print("Разделение выполнено ПРАВИЛЬНО")
 else:
-    print("⚠️  Баланс классов отличается")
-    print("⚠️  Возможна проблема в разбиении")
+    print("Баланс классов отличается")
+    print("Возможна проблема в разбиении")
 
 print("="*70 + "\n")

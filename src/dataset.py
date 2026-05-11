@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+
+
 import torch
 import numpy as np
 import pandas as pd
@@ -56,21 +57,25 @@ class PhysioNetSepsisDataset(Dataset):
         else:
             print("  ⚠️  Используем дефолтные значения (mean=0, std=1)")
 
-
     def compute_stats_from_indices(self, indices, max_files=None):
-
-        """Считает mean/std ТОЛЬКО по заданному подмножеству (например, train)."""
+        """Вычисление статистик нормализации только по train split (без leakage)"""
         if not self.normalize:
             return
+        
         print("⏳ Computing normalization statistics from TRAIN split only...")
         all_values = []
         valid_files = 0
-
+        failed_files = 0
+        
+        selected = indices if max_files is None else indices[:max_files]
+        
+        for idx in selected:
             file = self.files[idx]
             try:
                 df = pd.read_csv(file, sep='|')
                 features = [c for c in df.columns if c != 'SepsisLabel']
                 numeric_df = df[features].select_dtypes(include=[np.number])
+                
                 if len(numeric_df.columns) > 0:
                     values = numeric_df.values.astype(np.float32)
                     values = np.nan_to_num(values, nan=0, posinf=1e6, neginf=-1e6)
@@ -79,12 +84,13 @@ class PhysioNetSepsisDataset(Dataset):
             except Exception:
                 failed_files += 1
                 continue
+        
         if len(all_values) > 0 and valid_files > 0:
             all_values = np.vstack(all_values)
             self.mean = np.nanmean(all_values, axis=0).astype(np.float32)
             self.std = np.nanstd(all_values, axis=0).astype(np.float32)
             self.std = np.clip(self.std, 1e-6, 1e6)
-
+            print(f"  ✅ Вычислено из {valid_files} TRAIN-файлов (ошибок чтения: {failed_files})")
         else:
             print("  ⚠️  TRAIN-статистики не вычислены, оставляем mean=0/std=1")
     
@@ -132,26 +138,30 @@ def create_dataloaders(data_dir, seq_length=48, batch_size=32,
                        num_workers=0, seed=42, include_test=False,
                        split_manifest_path=None, max_stats_files=None,
                        drop_last_train=True):
+    """Создание dataloaders с правильным split и без data leakage"""
+    
     dataset = PhysioNetSepsisDataset(
         data_dir=data_dir,
         seq_length=seq_length,
-        normalize=False
+        normalize=False  # Сначала без нормализации
     )
     
     n_total = len(dataset)
     n_test = int(n_total * test_split)
     n_val = int(n_total * val_split)
     n_train = n_total - n_val - n_test
+    
     if n_train <= 0:
         raise ValueError("Invalid splits: train split became non-positive")
     
     print(f"📊 Всего: {n_total}, Train: {n_train}, Val: {n_val}, Test: {n_test}")
     
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(
-        dataset, [n_train, n_val, n_test], generator=torch.Generator().manual_seed(seed)
+        dataset, [n_train, n_val, n_test], 
+        generator=torch.Generator().manual_seed(seed)
     )
 
-
+    # Сохранение manifest для воспроизводимости
     if split_manifest_path is not None:
         manifest_path = Path(split_manifest_path)
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -170,12 +180,11 @@ def create_dataloaders(data_dir, seq_length=48, batch_size=32,
             json.dump(manifest, f, ensure_ascii=False, indent=2)
         print(f"📝 Split manifest saved: {manifest_path}")
 
-    # ВАЖНО: статистики нормализации считаем только по TRAIN после split (без leakage).
+    # 🔥 ВАЖНО: статистики нормализации считаем только по TRAIN (без leakage)
     dataset.normalize = normalize
     if normalize:
         dataset.compute_stats_from_indices(train_dataset.indices, max_files=max_stats_files)
 
-    
     train_loader = DataLoader(
         train_dataset, 
         batch_size=batch_size, 
@@ -210,8 +219,10 @@ def create_dataloaders(data_dir, seq_length=48, batch_size=32,
 
 def analyze_dataset(data_dir, output_path=None, max_files=None):
     """Быстрый аудит датасета: размеры, классы, статистики и связь признаков с target."""
+    
     data_dir = Path(data_dir)
     files = sorted(list(data_dir.glob("*.psv")))
+    
     if max_files is not None:
         files = files[:max_files]
     
@@ -224,12 +235,16 @@ def analyze_dataset(data_dir, output_path=None, max_files=None):
     
     for file in files:
         df = pd.read_csv(file, sep='|')
+        
         if feature_names is None:
             feature_names = [c for c in df.columns if c != 'SepsisLabel']
+        
         last_row = df.iloc[-1]
         x = last_row[feature_names].astype(np.float32).to_numpy()
         x = np.nan_to_num(x, nan=0.0, posinf=1e6, neginf=-1e6)
+        
         y = float(np.nan_to_num(last_row.get("SepsisLabel", 0.0), nan=0.0, posinf=1.0, neginf=0.0))
+        
         feature_stack.append(x)
         labels.append(y)
     
@@ -267,6 +282,8 @@ def analyze_dataset(data_dir, output_path=None, max_files=None):
 
 
 class SyntheticSepsisBatch(Dataset):
+    """Синтетический датасет для тестирования"""
+    
     def __init__(self, n, seq_len, input_size, seed=0):
         super().__init__()
         g = torch.Generator().manual_seed(seed)

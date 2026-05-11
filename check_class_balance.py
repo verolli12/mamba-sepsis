@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Проверка баланса классов в датасете"""
 import sys
 import numpy as np
 from pathlib import Path
@@ -23,13 +22,13 @@ def main():
     positive = int(np.sum(all_labels))
     negative = total - positive
     
-    print("📊 РАСПРЕДЕЛЕНИЕ КЛАССОВ")
+    print("РАСПРЕДЕЛЕНИЕ КЛАССОВ")
     print("=" * 60)
     print(f"Всего примеров:     {total:,}")
     print(f"Класс 0 (Healthy):  {negative:,} ({negative/total*100:.2f}%)")
     print(f"Класс 1 (Sepsis):   {positive:,} ({positive/total*100:.2f}%)")
-    print(f"\n🔴 Дисбаланс: 1:{negative//positive}")
-    print(f"\n💡 pos_weight для loss: {(negative/positive):.2f}")
+    print(f"\n Дисбаланс: 1:{negative//positive}")
+    print(f"\n pos_weight для loss: {(negative/positive):.2f}")
 
 if __name__ == "__main__":
     main()
