@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-
-
 import argparse
 import json
 from pathlib import Path
@@ -28,7 +25,7 @@ def collect_val_probs(model, loader, device):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", required=True, choices=["lstm", "transformer", "real_mamba", "grud"])
+    ap.add_argument("--model", required=True, choices=["lstm", "transformer", "real_mamba"])
     ap.add_argument("--checkpoint", required=True)
     ap.add_argument("--data-dir", default="../data/training_setA")
     ap.add_argument("--seq-len", type=int, default=48)

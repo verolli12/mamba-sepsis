@@ -52,7 +52,7 @@ def dirichlet_split_research(file_labels, n_clients=5, alpha=0.3, seed=42):
 
 
 def plot_distribution(clients, save_path=None):
-    """Визуализация распределения данных по клиентам"""
+
     
     client_ids = []
     positives = []
@@ -80,14 +80,14 @@ def plot_distribution(clients, save_path=None):
     plt.legend()
     plt.grid(axis='y', alpha=0.3)
 
-    # 🔥 ВАЖНО: Сначала сохраняем, потом показываем
+    
     if save_path:
         # Убедитесь что папка существует
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
-        print(f"✅ График сохранён: {save_path}")
+        print(f"График сохранён: {save_path}")
     
-    # Только пытаемся показать если есть дисплей
+    
     try:
         plt.show()
     except:
@@ -123,11 +123,11 @@ def plot_heatmap(clients, save_path=None):
     plt.xlabel("Classes")
     plt.ylabel("Clients")
 
-    # 🔥 ДОБАВЛЕНО: Логика сохранения (как в plot_distribution)
+    
     if save_path:
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
-        print(f"✅ Heatmap сохранён: {save_path}")
+        print(f"Heatmap сохранён: {save_path}")
     
     try:
         plt.show()
@@ -208,7 +208,7 @@ def create_label_skew_split(data_dir, n_clients=5, alpha=0.3, seed=42, max_files
 
     print(f"\n Splits сохранены в {output}")
 
-    # 📊 Визуализация
+    # Визуализация
     plot_distribution(clients, save_path=output / "distribution.png")
     plot_heatmap(clients, save_path=output / "heatmap.png")
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Федеративное обучение для Mamba/LSTM/Transformer
-ИСПРАВЛЕННАЯ ВЕРСИЯ
 """
 
 import torch
@@ -24,7 +23,7 @@ class PhysioNetDataset(Dataset):
         self.data = []
         self.labels = []
         
-        print(f"  📂 Загрузка {len(file_list)} файлов...")
+        print(f" Загрузка {len(file_list)} файлов...")
         for f in tqdm(file_list[:100], desc="    Loading"):
             try:
                 df = pd.read_csv(f, sep='|')
@@ -44,7 +43,7 @@ class PhysioNetDataset(Dataset):
             except:
                 continue
         
-        print(f"  ✅ Загружено {len(self.data)} образцов")
+        print(f" Загружено {len(self.data)} образцов")
     
     def __len__(self):
         return len(self.data)
@@ -138,7 +137,7 @@ def train_federated(model_name, client_files, rounds=5, local_epochs=3,
     best_loss = float('inf')
     
     for round_num in range(1, rounds + 1):
-        print(f"\n🔄 Round {round_num}/{rounds}")
+        print(f"Round {round_num}/{rounds}")
         
         client_states = []
         client_sizes = []
@@ -148,12 +147,12 @@ def train_federated(model_name, client_files, rounds=5, local_epochs=3,
             
             files = load_client_files(client_file)
             if len(files) == 0:
-                print(f"    ⚠️  Нет файлов, пропускаем")
+                print(f"Нет файлов, пропускаем")
                 continue
             
             dataset = PhysioNetDataset(files)
             if len(dataset) == 0:
-                print(f"    ⚠️  Пустой датасет, пропускаем")
+                print(f" Пустой датасет, пропускаем")
                 continue
             
             loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -171,10 +170,10 @@ def train_federated(model_name, client_files, rounds=5, local_epochs=3,
             client_states.append({k: v.cpu().clone() for k, v in local_model.state_dict().items()})
             client_sizes.append(len(dataset))
             
-            print(f"    ✅ Обучено, loss={loss:.4f}")
+            print(f" Обучено, loss={loss:.4f}")
         
         if len(client_states) == 0:
-            print("  ⚠️  Ни один клиент не обучился!")
+            print(" Ни один клиент не обучился!")
             continue
         
         weights = [s / sum(client_sizes) for s in client_sizes]
@@ -184,16 +183,16 @@ def train_federated(model_name, client_files, rounds=5, local_epochs=3,
         
         if val_loader:
             val_loss = evaluate(global_model, val_loader, criterion, device)
-            print(f"\n  📊 Global Val Loss: {val_loss:.4f}")
+            print(f"\n Global Val Loss: {val_loss:.4f}")
             
             if val_loss < best_loss:
                 best_loss = val_loss
                 Path("../models").mkdir(exist_ok=True)
                 torch.save(global_model.state_dict(), 
                           f"../models/{model_name}_fed_best.pt")
-                print(f"  💾 Сохранено! (Val Loss: {val_loss:.4f})")
+                print(f"  Сохранено! (Val Loss: {val_loss:.4f})")
         
-        print(f"  ✅ Round {round_num} завершён")
+        print(f"  Round {round_num} завершён")
     
     print(f"\n{'='*60}")
     print(f"ФЕДЕРАТИВНОЕ ОБУЧЕНИЕ ЗАВЕРШЕНО")
@@ -220,7 +219,7 @@ if __name__ == '__main__':
     client_files = [split_dir / f"client_{i}.txt" for i in range(5)]
     client_files = [f for f in client_files if f.exists()]
     
-    print(f"📁 Найдено клиентов: {len(client_files)}")
+    print(f"Найдено клиентов: {len(client_files)}")
     
     model = train_federated(
         model_name=args.model,
@@ -233,4 +232,4 @@ if __name__ == '__main__':
     
     Path("../models").mkdir(exist_ok=True)
     torch.save(model.state_dict(), f"../models/{args.model}_fed_final.pt")
-    print(f"💾 Модель сохранена: ../models/{args.model}_fed_final.pt")
+    print(f"Модель сохранена: ../models/{args.model}_fed_final.pt")

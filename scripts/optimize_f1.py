@@ -15,7 +15,7 @@ def load_model_checkpoint(model_name, device='cuda'):
     checkpoint_path = Path(f'../models/{model_name}_best.pt')
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     
-    # 🔥 FIX: Чекпоинт содержит словарь с метаданными
+    #  FIX: Чекпоинт содержит словарь с метаданными
     if 'model_state_dict' in checkpoint:
         model.load_state_dict(checkpoint['model_state_dict'])
     else:
@@ -70,16 +70,16 @@ def optimize_threshold_for_model(model_name, device='cuda'):
                 best_f1_clinical, best_t_clinical = f1_clinical, t
     
     # Результаты
-    print(f"📊 {model_name.upper()}")
+    print(f" {model_name.upper()}")
     print(f"   Стандартный порог (0.50): F1 = {f1_default:.4f}")
-    print(f"   🎯 Оптимальный по F1: порог = {best_t:.3f} → F1 = {best_f1:.4f}")
-    print(f"   ✅ Улучшение: +{best_f1 - f1_default:.4f}")
+    print(f" Оптимальный по F1: порог = {best_t:.3f} → F1 = {best_f1:.4f}")
+    print(f" Улучшение: +{best_f1 - f1_default:.4f}")
     
     if best_t_clinical != 0.5:
-        print(f"   🏥 Клинический порог (Precision≥90%): порог = {best_t_clinical:.3f} → F1 = {best_f1_clinical:.4f}")
+        print(f"Клинический порог (Precision≥90%): порог = {best_t_clinical:.3f} → F1 = {best_f1_clinical:.4f}")
     
     # Детальные метрики при оптимальном пороге
-    print(f"\n📈 Метрики при пороге {best_t:.3f}:")
+    print(f"\n Метрики при пороге {best_t:.3f}:")
     print(f"   Precision: {precision_score(labels, (preds>best_t).astype(int), zero_division=0):.4f}")
     print(f"   Recall:    {recall_score(labels, (preds>best_t).astype(int), zero_division=0):.4f}")
     print(f"   F1:        {best_f1:.4f}")
@@ -99,13 +99,13 @@ def optimize_threshold_for_model(model_name, device='cuda'):
     output_path = Path(f'../models/{model_name}_optimal_threshold.json')
     with open(output_path, 'w') as f:
         json.dump(results, f, indent=2)
-    print(f"\n✅ Сохранено: {output_path}")
+    print(f"\nСохранено: {output_path}")
     
     return results
 
 if __name__ == "__main__":
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f"🚀 Device: {device}")
+    print(f"Device: {device}")
     
     # Оптимизируйте нужную модель:
     # optimize_threshold_for_model('lstm', device)
@@ -116,8 +116,8 @@ if __name__ == "__main__":
         try:
             optimize_threshold_for_model(model, device)
         except FileNotFoundError:
-            print(f"⚠️ Модель {model} не найдена, пропускаем...")
+            print(f" Модель {model} не найдена, пропускаем...")
         except Exception as e:
-            print(f"⚠️ Ошибка для {model}: {e}")
+            print(f" Ошибка для {model}: {e}")
     
-    print("\n🎉 Оптимизация завершена!")
+    print("\n Оптимизация завершена!")
