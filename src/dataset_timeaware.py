@@ -43,7 +43,7 @@ class PhysioNetTimeAware(Dataset):
             self.mean = np.nanmean(all_values, axis=0).astype(np.float32)
             self.std = np.nanstd(all_values, axis=0).astype(np.float32)
             self.std = np.clip(self.std, 1e-6, 1e6)
-            print(f"  ✅ Mean: {self.mean.shape}, Std: {self.std.shape}")
+            print(f"  Mean: {self.mean.shape}, Std: {self.std.shape}")
     
     def __len__(self):
         return len(self.files)
@@ -63,13 +63,13 @@ class PhysioNetTimeAware(Dataset):
             x = df[features].fillna(0).values.astype(np.float32)
             x = np.nan_to_num(x, nan=0, posinf=1e6, neginf=-1e6)
             
-            # 🔥 TIME EMBEDDING: номер часа (0-47)
+            
             time_embedding = np.arange(len(x), dtype=np.float32).reshape(-1, 1) / self.seq_length
             
             # Маска пропусков
             mask = (~df[features].isna()).values.astype(np.float32)
             
-            # 🔥 TIME GAP: время с последнего измерения
+           
             time_gap = np.zeros((len(x), 1), dtype=np.float32)
             for i in range(1, len(x)):
                 time_gap[i] = min(time_gap[i-1] + 1, 10) if mask[i].mean() < 0.5 else 0
@@ -105,7 +105,7 @@ def create_dataloaders(data_dir, seq_length=48, batch_size=32, val_split=0.2):
     n_val = int(n_total * val_split)
     n_train = n_total - n_val
     
-    print(f"📊 Всего: {n_total}, Train: {n_train}, Val: {n_val}")
+    print(f"Всего: {n_total}, Train: {n_train}, Val: {n_val}")
     
     train_dataset, val_dataset = torch.utils.data.random_split(
         dataset, [n_train, n_val], generator=torch.Generator().manual_seed(42)
@@ -114,6 +114,6 @@ def create_dataloaders(data_dir, seq_length=48, batch_size=32, val_split=0.2):
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     
-    print(f"📈 Train batches: {len(train_loader)}, Val batches: {len(val_loader)}")
+    print(f"Train batches: {len(train_loader)}, Val batches: {len(val_loader)}")
     
     return train_loader, val_loader
