@@ -134,16 +134,8 @@ criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 Применена стратегия Warmup + Cosine Annealing:
 
 
-LR
-│        ┌─ peak (lr)
-│       ╱ ╲
-│      ╱   ╲
-│     ╱     ╲______ cosine decay
-│    ╱
-│   ╱ warmup
-│  ╱
-│ ╱
-└───────────────────→ Epochs
+<img width="291" height="270" alt="image" src="https://github.com/user-attachments/assets/1eef5fb6-d6cc-4d19-b595-7a7bb44a1cec" />
+
 
 
 
