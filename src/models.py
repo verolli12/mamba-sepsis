@@ -61,7 +61,6 @@ class PositionalEncoding(nn.Module):
         x = x + self.pe[:x.size(1)].transpose(0, 1)
         return self.dropout(x)
 
-# ✅ СТАБИЛЬНАЯ MAMBA — аппроксимация через LSTM с правильной инициализацией
 class RealMamba(nn.Module):
     def __init__(self, input_size=40, d_model=64, n_layers=2, dropout=0.3):
         super().__init__()
