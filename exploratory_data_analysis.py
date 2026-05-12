@@ -4,9 +4,7 @@ import pandas as pd
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 
-def load_all_data(data_dir, seq_length=48, max_files=None):
-    """Загружаем данные с фиксированной длиной последовательности"""
-    
+def load_all_data(data_dir, seq_length=48, max_files=None):    
     data_dir = Path(data_dir)
     files = list(data_dir.glob("*.psv"))
     print(f" Найдено файлов: {len(files)}")
@@ -33,7 +31,6 @@ def load_all_data(data_dir, seq_length=48, max_files=None):
             x = df[features].values.astype(np.float32)
             y = float(df['SepsisLabel'].iloc[-1])
             
-            # Проверяем что форма правильная
             if x.shape == (seq_length, len(features)):
                 data_list.append(x)
                 labels_list.append(y)
@@ -41,7 +38,7 @@ def load_all_data(data_dir, seq_length=48, max_files=None):
         except Exception as e:
             continue
     
-    # Теперь можно создать массив - все последовательности одинаковой длины!
+    
     X = np.array(data_list)
     y = np.array(labels_list)
     
