@@ -17,7 +17,7 @@ class PhysioNetSepsisDataset(Dataset):
         if len(self.files) == 0:
             raise ValueError(f"No .psv files found in {data_dir}")
         
-        print(f"📂 Найдено файлов: {len(self.files)}")
+        print(f"Найдено файлов: {len(self.files)}")
         
         self.normalize = normalize
         self.mean = np.zeros(40, dtype=np.float32)
@@ -52,17 +52,17 @@ class PhysioNetSepsisDataset(Dataset):
             self.mean = np.nanmean(all_values, axis=0).astype(np.float32)
             self.std = np.nanstd(all_values, axis=0).astype(np.float32)
             self.std = np.clip(self.std, 1e-6, 1e6)
-            print(f"  ✅ Вычислено из {valid_files} файлов")
+            print(f"  Вычислено из {valid_files} файлов")
             print(f"  Mean shape: {self.mean.shape}, Std shape: {self.std.shape}")
         else:
-            print("  ⚠️  Используем дефолтные значения (mean=0, std=1)")
+            print("  Используем дефолтные значения (mean=0, std=1)")
 
     def compute_stats_from_indices(self, indices, max_files=None):
         """Вычисление статистик нормализации только по train split (без leakage)"""
         if not self.normalize:
             return
         
-        print("⏳ Computing normalization statistics from TRAIN split only...")
+        print(" Computing normalization statistics from TRAIN split only...")
         all_values = []
         valid_files = 0
         failed_files = 0
@@ -90,9 +90,9 @@ class PhysioNetSepsisDataset(Dataset):
             self.mean = np.nanmean(all_values, axis=0).astype(np.float32)
             self.std = np.nanstd(all_values, axis=0).astype(np.float32)
             self.std = np.clip(self.std, 1e-6, 1e6)
-            print(f"  ✅ Вычислено из {valid_files} TRAIN-файлов (ошибок чтения: {failed_files})")
+            print(f" Вычислено из {valid_files} TRAIN-файлов (ошибок чтения: {failed_files})")
         else:
-            print("  ⚠️  TRAIN-статистики не вычислены, оставляем mean=0/std=1")
+            print(" TRAIN-статистики не вычислены, оставляем mean=0/std=1")
     
     def __len__(self):
         return len(self.files)
@@ -154,7 +154,7 @@ def create_dataloaders(data_dir, seq_length=48, batch_size=32,
     if n_train <= 0:
         raise ValueError("Invalid splits: train split became non-positive")
     
-    print(f"📊 Всего: {n_total}, Train: {n_train}, Val: {n_val}, Test: {n_test}")
+    print(f"Всего: {n_total}, Train: {n_train}, Val: {n_val}, Test: {n_test}")
     
     train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(
         dataset, [n_train, n_val, n_test], 
@@ -180,7 +180,7 @@ def create_dataloaders(data_dir, seq_length=48, batch_size=32,
             json.dump(manifest, f, ensure_ascii=False, indent=2)
         print(f"📝 Split manifest saved: {manifest_path}")
 
-    # 🔥 ВАЖНО: статистики нормализации считаем только по TRAIN (без leakage)
+  
     dataset.normalize = normalize
     if normalize:
         dataset.compute_stats_from_indices(train_dataset.indices, max_files=max_stats_files)
