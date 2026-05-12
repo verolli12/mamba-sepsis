@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-"""
-STABLE TRAINING PIPELINE v2.6 — FIXED SCHEDULER
-✅ WarmupCosine scheduler работает корректно
-✅ Градиентная аккумуляция с проверкой
-✅ Градиент мониторинг для отладки
-"""
-
 import argparse
 import sys
 import time
@@ -21,10 +13,6 @@ from sklearn.metrics import roc_auc_score, f1_score, accuracy_score
 sys.path.insert(0, str(Path(__file__).parent))
 from models import create_model, count_parameters
 
-
-# -----------------------------
-# WARMUP + COSINE SCHEDULER (ПРОСТОЙ И РАБОЧИЙ)
-# -----------------------------
 class WarmupCosine:
     def __init__(self, optimizer, warmup_steps, total_steps, min_lr=1e-7):
         self.optimizer = optimizer
@@ -46,9 +34,6 @@ class WarmupCosine:
             pg['lr'] = lr
 
 
-# -----------------------------
-# EMA (Exponential Moving Average)
-# -----------------------------
 class ModelEMA:
     def __init__(self, model, decay=0.999):
         self.model = model
@@ -74,9 +59,6 @@ class ModelEMA:
             self.original_state = None
 
 
-# -----------------------------
-# TRAIN WITH GRADIENT ACCUMULATION
-# -----------------------------
 def train_epoch(model, loader, criterion, optimizer, scaler, scheduler, device, 
                 accum_steps=2, grad_clip=1.0):
     model.train()
@@ -108,7 +90,6 @@ def train_epoch(model, loader, criterion, optimizer, scaler, scheduler, device,
         if should_step:
             scaler.unscale_(optimizer)
             
-            # 🔍 Проверка градиентов для отладки
             total_grad_norm = 0.0
             for p in model.parameters():
                 if p.grad is not None:
@@ -116,9 +97,9 @@ def train_epoch(model, loader, criterion, optimizer, scaler, scheduler, device,
             total_grad_norm = total_grad_norm ** 0.5
             
             if total_grad_norm > 10.0:
-                print(f"⚠️  Large gradients: {total_grad_norm:.2f}")
+                print(f"Large gradients: {total_grad_norm:.2f}")
             elif total_grad_norm < 1e-6:
-                print(f"⚠️  Vanishing gradients: {total_grad_norm:.2e}")
+                print(f" Vanishing gradients: {total_grad_norm:.2e}")
             
             if grad_clip > 0:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
@@ -137,11 +118,6 @@ def train_epoch(model, loader, criterion, optimizer, scaler, scheduler, device,
 
     avg_loss = total_loss / max(1, valid_batches)
     return avg_loss, np.array(preds), np.array(labels)
-
-
-# -----------------------------
-# EVALUATE
-# -----------------------------
 @torch.no_grad()
 def evaluate(model, loader, criterion, device):
     model.eval()
@@ -174,10 +150,6 @@ def evaluate(model, loader, criterion, device):
         preds, labels
     )
 
-
-# -----------------------------
-# SAVE UTILS
-# -----------------------------
 def save_roc(y_true, y_prob, path):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -199,9 +171,6 @@ def save_metrics(metrics, path):
         json.dump(metrics, f, indent=2)
 
 
-# -----------------------------
-# MAIN
-# -----------------------------
 def main():
     ap = argparse.ArgumentParser(description="Stable Training Pipeline v2.6")
     ap.add_argument('--model', required=True, choices=['lstm', 'transformer', 'real_mamba', 'grud'])
@@ -284,7 +253,7 @@ def main():
     history = {'train_loss': [], 'val_loss': [], 'val_auc': [], 'val_f1': [], 'smoothed_auc': []}
     smoothed_auc = []
 
-    print(f"\n🚀 Starting training: {args.epochs} epochs")
+    print(f"\n Starting training: {args.epochs} epochs")
     print(f"   Batches/epoch: {len(train_loader)}")
     print(f"   Accum steps: {args.accum_steps}")
     print(f"   Effective LR steps: {total_steps}")
@@ -339,16 +308,16 @@ def main():
                 'val_f1': f1,
                 'args': vars(args)
             }, Path(args.save_dir) / f"{args.model}_best.pt")
-            print(f"  ✅ New best! Saved to {args.save_dir}/{args.model}_best.pt")
+            print(f" New best! Saved to {args.save_dir}/{args.model}_best.pt")
         else:
             no_improve += 1
             if no_improve >= args.patience:
-                print(f"\n⚠️ Early stopping at epoch {epoch+1} (no improvement for {args.patience} epochs)")
+                print(f"\nEarly stopping at epoch {epoch+1} (no improvement for {args.patience} epochs)")
                 break
 
     print("\n" + "=" * 70)
-    print(f"🏆 Best AUROC: {best_auc:.4f} (epoch {best_epoch})")
-    print(f"🎯 Best F1: {best_f1:.4f}")
+    print(f" Best AUROC: {best_auc:.4f} (epoch {best_epoch})")
+    print(f" Best F1: {best_f1:.4f}")
     
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
@@ -382,7 +351,7 @@ def main():
         'history': history
     }
     save_metrics(metrics, Path(args.log_dir) / f"{args.model}_metrics.json")
-    print(f"✅ Metrics saved: {args.log_dir}/{args.model}_metrics.json")
+    print(f" Metrics saved: {args.log_dir}/{args.model}_metrics.json")
     
     try:
         import matplotlib.pyplot as plt
@@ -411,11 +380,11 @@ def main():
         plot_path = Path(args.log_dir) / f"{args.model}_training.png"
         plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
         plt.close()
-        print(f"✅ Plot saved: {plot_path}")
+        print(f"Plot saved: {plot_path}")
     except Exception as e:
-        print(f"⚠️ Could not save training plot: {e}")
+        print(f"Could not save training plot: {e}")
     
-    print("\n🎉 TRAINING COMPLETE!")
+    print("\nTRAINING COMPLETE!")
     return best_auc
 
 if __name__ == "__main__":
