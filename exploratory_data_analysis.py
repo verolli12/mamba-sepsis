@@ -9,11 +9,11 @@ def load_all_data(data_dir, seq_length=48, max_files=None):
     
     data_dir = Path(data_dir)
     files = list(data_dir.glob("*.psv"))
-    print(f"📂 Найдено файлов: {len(files)}")
+    print(f" Найдено файлов: {len(files)}")
     
     if max_files:
         files = files[:max_files]
-        print(f"📋 Обрабатываем первые {max_files} файлов для теста")
+        print(f" Обрабатываем первые {max_files} файлов для теста")
     
     data_list = []
     labels_list = []
@@ -45,7 +45,7 @@ def load_all_data(data_dir, seq_length=48, max_files=None):
     X = np.array(data_list)
     y = np.array(labels_list)
     
-    print(f"✅ Загружено: {X.shape[0]} пациентов, {X.shape[1]} временных шагов, {X.shape[2]} признаков")
+    print(f" Загружено: {X.shape[0]} пациентов, {X.shape[1]} временных шагов, {X.shape[2]} признаков")
     
     return X, y, features
 
@@ -69,7 +69,7 @@ X_val, X_test, y_val, y_test = train_test_split(
     X_temp, y_temp, test_size=0.5, random_state=42, stratify=y_temp
 )
 
-print(f"\n✅ Разбиение выполнено:")
+print(f"\n Разбиение выполнено:")
 print(f"   TRAIN: {X_train.shape[0]} пациентов (80%)")
 print(f"   VAL:   {X_val.shape[0]} пациентов (10%)")
 print(f"   TEST:  {X_test.shape[0]} пациентов (10%)")
@@ -82,7 +82,7 @@ print("\n" + "="*70)
 print("ЭТАП 2: СТАТИСТИЧЕСКИЕ ХАРАКТЕРИСТИКИ (только TRAIN)")
 print("="*70)
 
-print(f"\n📊 ОБЩАЯ ИНФОРМАЦИЯ:")
+print(f"\n ОБЩАЯ ИНФОРМАЦИЯ:")
 print(f"   Признаков: {len(features)}")
 print(f"   Временной шаг: {X_train.shape[1]} часов на пациента")
 
@@ -91,12 +91,12 @@ sepsis_count = (y_train == 1).sum()
 healthy_count = (y_train == 0).sum()
 sepsis_pct = 100 * sepsis_count / len(y_train)
 
-print(f"\n🏥 БАЛАНС КЛАССОВ (в TRAIN):")
+print(f"\n БАЛАНС КЛАССОВ (в TRAIN):")
 print(f"   Без сепсиса: {healthy_count} ({100-sepsis_pct:.1f}%)")
 print(f"   С сепсисом:  {sepsis_count} ({sepsis_pct:.1f}%)")
 
 # Статистика по признакам (ТОЛЬКО на train!)
-print(f"\n📈 СТАТИСТИКА ПРИЗНАКОВ (первые 10):")
+print(f"\n СТАТИСТИКА ПРИЗНАКОВ (первые 10):")
 print(f"{'Признак':<20} {'Mean':<12} {'Std':<12} {'Min':<12} {'Max':<12} {'Missing %'}")
 print("-" * 80)
 
@@ -109,9 +109,7 @@ for i, feature in enumerate(features[:10]):
         print(f"{feature:<20} {np.mean(valid_data):>11.3f} {np.std(valid_data):>11.3f} "
               f"{np.min(valid_data):>11.3f} {np.max(valid_data):>11.3f} {missing_pct:>10.1f}%")
 
-# ═══════════════════════════════════════════════════════════════
-# ЭТАП 3: НОРМАЛИЗАЦИЯ
-# ═══════════════════════════════════════════════════════════════
+
 
 print("\n" + "="*70)
 print("ЭТАП 3: НОРМАЛИЗАЦИЯ (основано на TRAIN)")
@@ -130,21 +128,13 @@ for i in range(X_train.shape[2]):
 mean_train = np.array(mean_train)
 std_train = np.array(std_train)
 
-print(f"✅ Вычислены mean/std на TRAIN данных")
+print(f" Вычислены mean/std на TRAIN данных")
 
 X_train_norm = (X_train - mean_train) / (std_train + 1e-8)
 X_val_norm = (X_val - mean_train) / (std_train + 1e-8)
 X_test_norm = (X_test - mean_train) / (std_train + 1e-8)
 
-print(f"✅ Нормализация применена ко всем наборам")
-
-# ═══════════════════════════════════════════════════════════════
-# ЭТАП 4: ПРОВЕРКА РАСПРЕДЕЛЕНИЙ
-# ═══════════════════════════════════════════════════════════════
-
-print("\n" + "="*70)
-print("ЭТАП 4: ПРОВЕРКА (распределения похожи?)")
-print("="*70)
+print(f"Нормализация применена ко всем наборам")
 
 feature_idx = 0
 train_feature = X_train_norm[:, :, feature_idx].flatten()
@@ -157,17 +147,9 @@ print(f"   VAL:   mean={np.nanmean(val_feature):.4f}, std={np.nanstd(val_feature
 print(f"   TEST:  mean={np.nanmean(test_feature):.4f}, std={np.nanstd(test_feature):.4f}")
 
 if abs(np.nanmean(val_feature)) > 0.2 or abs(np.nanmean(test_feature)) > 0.2:
-    print("⚠️  Распределения отличаются! Проверьте разбиение!")
+    print(" Распределения отличаются! Проверьте разбиение!")
 else:
-    print("✅ Распределения похожи (как и ожидается)")
-
-# ═══════════════════════════════════════════════════════════════
-# ЭТАП 5: СВЯЗЬ ПРИЗНАКОВ С ЦЕЛЕВОЙ ПЕРЕМЕННОЙ
-# ═══════════════════════════════════════════════════════════════
-
-print("\n" + "="*70)
-print("ЭТАП 5: КАКИЕ ПРИЗНАКИ СВЯЗАНЫ С СЕПСИСОМ?")
-print("="*70)
+    print("Распределения похожи (как и ожидается)")
 
 print(f"\n{'Признак':<20} {'Sepsis=0':<15} {'Sepsis=1':<15} {'Разница'}")
 print("-" * 60)
@@ -192,6 +174,5 @@ for i, feature in enumerate(features[:10]):
         diff = abs(mean_sepsis - mean_healthy)
         print(f"{feature:<20} {mean_healthy:>14.3f} {mean_sepsis:>14.3f} {diff:>14.3f}")
 
-print("\n" + "="*70)
-print("✅ АНАЛИЗ ЗАВЕРШЁН!")
-print("="*70)
+
+print(" АНАЛИЗ ЗАВЕРШЁН!")
