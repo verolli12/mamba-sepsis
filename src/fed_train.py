@@ -143,7 +143,7 @@ def train_federated(model_name, client_files, rounds=5, local_epochs=3,
         client_sizes = []
         
         for client_idx, client_file in enumerate(client_files):
-            print(f"\n  👤 Client {client_idx}:")
+            print(f"\n Client {client_idx}:")
             
             files = load_client_files(client_file)
             if len(files) == 0:
