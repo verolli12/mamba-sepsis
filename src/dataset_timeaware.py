@@ -16,7 +16,7 @@ class PhysioNetTimeAware(Dataset):
         self.seq_length = seq_length
         self.files = list(self.data_dir.glob("*.psv"))[:max_files]
         
-        print(f"📂 Найдено файлов: {len(self.files)}")
+        print(f" Найдено файлов: {len(self.files)}")
         
         self.normalize = normalize
         self.mean = np.zeros(40, dtype=np.float32)
